@@ -1,0 +1,5 @@
+{
+  "name": "Global Pulse: Real-time News Dashboard",
+  "description": "A real-time global news dashboard fetching urgent events and breaking news using Gemini AI with Google Search grounding.",
+  "requestFramePermissions": []
+}
