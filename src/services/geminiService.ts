@@ -51,8 +51,16 @@ export async function fetchLiveTweets(country: string, lang: string = 'ar'): Pro
     return JSON.parse(text);
   } catch (error: any) {
     console.error("Error fetching live tweets:", error);
-    // If it's a quota error, return mock data to keep the UI functional
-    if (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED')) {
+    
+    // Check for various error formats
+    const isQuotaError = 
+      error.message?.includes('429') || 
+      error.message?.includes('RESOURCE_EXHAUSTED') ||
+      error.status === 'RESOURCE_EXHAUSTED' ||
+      error.error?.code === 429 ||
+      error.error?.status === 'RESOURCE_EXHAUSTED';
+
+    if (isQuotaError) {
       return getMockTweets(country, lang);
     }
     throw error;

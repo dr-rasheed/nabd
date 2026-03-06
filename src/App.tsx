@@ -138,22 +138,39 @@ export default function App() {
   return (
     <div 
       className={cn(
-        "min-h-screen bg-[#050505] text-[#E4E3E0] font-mono selection:bg-emerald-500/30 text-[13px]",
+        "min-h-screen bg-[#050505] text-[#E4E3E0] font-mono selection:bg-emerald-500/30 text-sm md:text-[13px]",
         isRtl ? "font-['Cairo',_sans-serif]" : "font-mono"
       )}
       dir={isRtl ? 'rtl' : 'ltr'}
     >
-      {/* Top Navigation - Ultra Compact */}
-      <nav className="sticky top-0 z-50 bg-[#050505]/90 backdrop-blur-sm border-b border-white/5 px-2 py-1 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      {/* Top Navigation - Mobile Optimized */}
+      <nav className="sticky top-0 z-50 bg-[#050505]/95 backdrop-blur-md border-b border-white/5 px-4 py-3 md:py-2 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center justify-between w-full md:w-auto">
           <div className="flex items-center gap-2">
-            <Globe className="w-4 h-4 text-emerald-500" />
-            <span className="font-bold uppercase tracking-tighter text-sm">NABD.INTEL</span>
+            <Globe className="w-5 h-5 text-emerald-500" />
+            <span className="font-bold uppercase tracking-tighter text-base">NABD.INTEL</span>
           </div>
           
-          <div className="h-4 w-[1px] bg-white/10" />
-          
-          <div className="flex gap-1 overflow-x-auto no-scrollbar max-w-[50vw]">
+          <div className="flex items-center gap-3 md:hidden">
+            <div className="flex items-center gap-2 text-xs text-zinc-500 font-bold uppercase bg-white/5 px-2 py-1 rounded">
+              <span className="animate-pulse text-emerald-500">●</span>
+              {countdown}S
+            </div>
+            <button 
+              onClick={() => fetchUpdates(selectedCountry.name[lang], true)}
+              disabled={refreshing || countdown > REFRESH_INTERVAL - 10}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-30 active:bg-white/20"
+            >
+              <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+            </button>
+            <button onClick={toggleLanguage} className="text-xs font-bold text-zinc-400 hover:text-white uppercase bg-white/5 px-3 py-1.5 rounded transition-colors">
+              {lang === 'en' ? 'AR' : 'EN'}
+            </button>
+          </div>
+        </div>
+
+        <div className="w-full md:w-auto overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0 pb-1 md:pb-0">
+          <div className="flex gap-2 md:gap-1 min-w-max">
             {COUNTRIES.map((c) => (
               <button
                 key={c.code}
@@ -163,23 +180,25 @@ export default function App() {
                   setLoading(true);
                 }}
                 className={cn(
-                  "px-2 py-1 rounded flex items-center gap-1.5 transition-all whitespace-nowrap",
-                  selectedCountry.code === c.code ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300"
+                  "px-3 py-2 md:px-2 md:py-1 rounded-lg md:rounded flex items-center gap-2 md:gap-1.5 transition-all whitespace-nowrap active:scale-95",
+                  selectedCountry.code === c.code 
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
+                    : "bg-white/5 text-zinc-400 border border-white/5 hover:bg-white/10"
                 )}
               >
                 <img 
-                  src={`https://flagcdn.com/w20/${c.code.toLowerCase()}.png`} 
+                  src={`https://flagcdn.com/w40/${c.code.toLowerCase()}.png`} 
                   alt={c.code}
-                  className="w-4 h-2.5 object-cover rounded-[1px]"
+                  className="w-5 h-3.5 md:w-4 md:h-2.5 object-cover rounded-[2px] md:rounded-[1px]"
                   referrerPolicy="no-referrer"
                 />
-                <span className="text-[10px] uppercase font-bold">{c.name[lang]}</span>
+                <span className="text-xs md:text-[10px] uppercase font-bold">{c.name[lang]}</span>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-3">
           <button 
             onClick={() => fetchUpdates(selectedCountry.name[lang], true)}
             disabled={refreshing || countdown > REFRESH_INTERVAL - 10}
