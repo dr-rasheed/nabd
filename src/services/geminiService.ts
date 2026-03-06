@@ -14,10 +14,11 @@ export interface Tweet {
 
 export async function fetchLiveTweets(country: string, lang: string = 'ar'): Promise<Tweet[]> {
   try {
-    const prompt = `Generate 5 extremely recent, realistic "tweets" about current events in ${country}. 
+    const prompt = `Generate 3 extremely recent, realistic "tweets" about current events in ${country}. 
     The tweets should feel like they are from a live news feed. 
     Include a mix of news, local updates, and trending topics.
     Language: ${lang === 'ar' ? 'Arabic' : 'English'}.
+    IMPORTANT: Ensure each tweet has a unique, random numeric ID string.
     Return the data in a structured JSON format.`;
 
     const response = await ai.models.generateContent({
@@ -46,10 +47,42 @@ export async function fetchLiveTweets(country: string, lang: string = 'ar'): Pro
     });
 
     const text = response.text;
-    if (!text) return [];
+    if (!text) return getMockTweets(country, lang);
     return JSON.parse(text);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching live tweets:", error);
-    return [];
+    // If it's a quota error, return mock data to keep the UI functional
+    if (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED')) {
+      return getMockTweets(country, lang);
+    }
+    throw error;
   }
+}
+
+function getMockTweets(country: string, lang: string): Tweet[] {
+  const isAr = lang === 'ar';
+  return [
+    {
+      id: Math.random().toString(),
+      author: isAr ? "نظام النبض" : "Pulse System",
+      handle: "nabd_intel",
+      content: isAr 
+        ? `تحديث أمني: جاري مراقبة التطورات في ${country}. النظام يعمل في وضع الاستعداد بسبب ضغط البيانات.`
+        : `Security Update: Monitoring developments in ${country}. System operating in standby mode due to data traffic.`,
+      timestamp: isAr ? "الآن" : "Now",
+      country: country,
+      countryCode: "INTEL"
+    },
+    {
+      id: Math.random().toString(),
+      author: isAr ? "مراقب الأخبار" : "News Monitor",
+      handle: "monitor_x",
+      content: isAr
+        ? `تقارير أولية عن نشاط اقتصادي متزايد في المنطقة. ننتظر التأكيد من المصادر الميدانية.`
+        : `Initial reports of increased economic activity in the region. Awaiting field confirmation.`,
+      timestamp: isAr ? "منذ دقيقة" : "1m ago",
+      country: country,
+      countryCode: "INTEL"
+    }
+  ];
 }

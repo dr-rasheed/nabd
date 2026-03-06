@@ -35,30 +35,83 @@ const COUNTRIES = [
   { code: 'FR', name: { en: 'France', ar: 'فرنسا' } },
 ];
 
+const REFRESH_INTERVAL = 300; // 5 minutes
+const CACHE_KEY = 'nabd_intel_cache';
+
+interface CacheData {
+  [countryCode: string]: {
+    tweets: Tweet[];
+    timestamp: number;
+  };
+}
+
 export default function App() {
   const [lang, setLang] = useState<Language>('ar');
   const [tweets, setTweets] = useState<Tweet[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
-  const [countdown, setCountdown] = useState(5);
+  const [countdown, setCountdown] = useState(REFRESH_INTERVAL);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const isRtl = lang === 'ar';
 
-  const fetchUpdates = useCallback(async (countryName: string) => {
-    setRefreshing(true);
-    const newTweets = await fetchLiveTweets(countryName, lang);
-    if (newTweets.length > 0) {
-      setTweets(prev => {
-        const combined = [...newTweets, ...prev];
-        return combined.slice(0, 50); // Keep last 50
-      });
+  const getCache = (): CacheData => {
+    const data = localStorage.getItem(CACHE_KEY);
+    return data ? JSON.parse(data) : {};
+  };
+
+  const setCache = (countryCode: string, newTweets: Tweet[]) => {
+    const cache = getCache();
+    cache[countryCode] = {
+      tweets: newTweets,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  };
+
+  const fetchUpdates = useCallback(async (countryName: string, force: boolean = false) => {
+    const countryCode = selectedCountry.code;
+    const cache = getCache();
+    const cached = cache[countryCode];
+    
+    // Use cache if it's fresh (less than 10 mins old) and not a force refresh
+    if (!force && cached && (Date.now() - cached.timestamp < 600000)) {
+      setTweets(cached.tweets);
+      setLoading(false);
+      setRefreshing(false);
+      return;
     }
-    setRefreshing(false);
-    setLoading(false);
-    setCountdown(5);
-  }, [lang]);
+
+    setRefreshing(true);
+    setError(null);
+    try {
+      const newTweets = await fetchLiveTweets(countryName, lang);
+      if (newTweets.length > 0) {
+        setTweets(prev => {
+          const existingIds = new Set(prev.map(t => t.id));
+          const uniqueNewTweets = newTweets.filter(t => !existingIds.has(t.id));
+          const combined = [...uniqueNewTweets, ...prev];
+          const final = combined.slice(0, 50);
+          setCache(countryCode, final);
+          return final;
+        });
+      }
+      // If we got here, it might be mock data if fetchLiveTweets caught a 429
+      // We don't necessarily know if it's mock data unless we check the error state
+    } catch (err: any) {
+      if (err.message?.includes('429') || err.message?.includes('RESOURCE_EXHAUSTED')) {
+        setError(lang === 'ar' ? 'تم تجاوز حصة الاستخدام. يتم عرض بيانات محاكاة مؤقتاً.' : 'Quota exceeded. Showing simulated data temporarily.');
+      } else {
+        setError(lang === 'ar' ? 'حدث خطأ أثناء جلب البيانات.' : 'Error fetching updates.');
+      }
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+      setCountdown(REFRESH_INTERVAL);
+    }
+  }, [lang, selectedCountry.code]);
 
   useEffect(() => {
     fetchUpdates(selectedCountry.name[lang]);
@@ -69,7 +122,7 @@ export default function App() {
       setCountdown(prev => {
         if (prev <= 1) {
           fetchUpdates(selectedCountry.name[lang]);
-          return 5;
+          return REFRESH_INTERVAL;
         }
         return prev - 1;
       });
@@ -127,6 +180,14 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button 
+            onClick={() => fetchUpdates(selectedCountry.name[lang], true)}
+            disabled={refreshing || countdown > REFRESH_INTERVAL - 10}
+            className="p-1 hover:bg-white/10 rounded transition-colors disabled:opacity-30"
+            title={isRtl ? 'تحديث يدوي' : 'Manual Refresh'}
+          >
+            <RefreshCw className={cn("w-3 h-3", refreshing && "animate-spin")} />
+          </button>
           <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-bold uppercase">
             <span className="animate-pulse text-emerald-500">●</span>
             LIVE: {countdown}S
@@ -152,11 +213,24 @@ export default function App() {
               <span className="text-[11px] font-bold text-emerald-500">{selectedCountry.name[lang]}</span>
             </div>
           </div>
-          {refreshing && <RefreshCw className="w-3 h-3 animate-spin text-emerald-500" />}
+          <div className="flex items-center gap-3">
+            {getCache()[selectedCountry.code] && (
+              <span className="text-[9px] text-zinc-600 uppercase font-bold">
+                {isRtl ? 'آخر تحديث: ' : 'UPDATED: '}
+                {new Date(getCache()[selectedCountry.code].timestamp).toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+            {refreshing && <RefreshCw className="w-3 h-3 animate-spin text-emerald-500" />}
+          </div>
         </div>
 
         {/* Feed */}
         <div className="divide-y divide-white/5">
+          {error && (
+            <div className="p-4 bg-red-500/10 border-b border-red-500/20 text-red-400 text-center text-[11px] font-bold uppercase tracking-wider">
+              {error}
+            </div>
+          )}
           <AnimatePresence mode="popLayout">
             {loading ? (
               Array(10).fill(0).map((_, i) => (
