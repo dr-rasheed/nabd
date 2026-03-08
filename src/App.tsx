@@ -89,6 +89,12 @@ export default function App() {
     try {
       const newTweets = await fetchLiveTweets(countryName, lang);
       if (newTweets.length > 0) {
+        // Check if we received mock data (indicated by countryCode 'INTEL')
+        const isMockData = newTweets.some(t => t.countryCode === 'INTEL');
+        if (isMockData) {
+          setError(lang === 'ar' ? 'تم تجاوز حصة الاستخدام. يتم عرض بيانات محاكاة مؤقتاً.' : 'Quota exceeded. Showing simulated data temporarily.');
+        }
+
         setTweets(prev => {
           const existingIds = new Set(prev.map(t => t.id));
           const uniqueNewTweets = newTweets.filter(t => !existingIds.has(t.id));
@@ -98,14 +104,9 @@ export default function App() {
           return final;
         });
       }
-      // If we got here, it might be mock data if fetchLiveTweets caught a 429
-      // We don't necessarily know if it's mock data unless we check the error state
     } catch (err: any) {
-      if (err.message?.includes('429') || err.message?.includes('RESOURCE_EXHAUSTED')) {
-        setError(lang === 'ar' ? 'تم تجاوز حصة الاستخدام. يتم عرض بيانات محاكاة مؤقتاً.' : 'Quota exceeded. Showing simulated data temporarily.');
-      } else {
-        setError(lang === 'ar' ? 'حدث خطأ أثناء جلب البيانات.' : 'Error fetching updates.');
-      }
+      // Fallback for other errors
+      setError(lang === 'ar' ? 'حدث خطأ أثناء جلب البيانات.' : 'Error fetching updates.');
     } finally {
       setRefreshing(false);
       setLoading(false);

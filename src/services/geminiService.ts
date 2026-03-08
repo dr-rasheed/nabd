@@ -50,8 +50,6 @@ export async function fetchLiveTweets(country: string, lang: string = 'ar'): Pro
     if (!text) return getMockTweets(country, lang);
     return JSON.parse(text);
   } catch (error: any) {
-    console.error("Error fetching live tweets:", error);
-    
     // Check for various error formats
     const isQuotaError = 
       error.message?.includes('429') || 
@@ -61,8 +59,11 @@ export async function fetchLiveTweets(country: string, lang: string = 'ar'): Pro
       error.error?.status === 'RESOURCE_EXHAUSTED';
 
     if (isQuotaError) {
+      console.warn("Quota exceeded. Switching to mock data.");
       return getMockTweets(country, lang);
     }
+    
+    console.error("Error fetching live tweets:", error);
     throw error;
   }
 }
